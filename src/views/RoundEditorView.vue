@@ -144,6 +144,11 @@ async function handleDelete() {
   router.push('/')
 }
 
+function handleBack() {
+  if (hasChanges.value && !confirm('Du har ulagrede endringer. Vil du forlate siden?')) return
+  router.push('/')
+}
+
 function handleKeydown(e) {
   if ((e.metaKey || e.ctrlKey) && e.key === 's') {
     e.preventDefault()
@@ -183,7 +188,7 @@ onBeforeUnmount(() => {
     <div class="editor-main">
       <div class="round-editor">
         <div class="editor-top">
-          <router-link to="/" class="back-link">&larr; Alle runder</router-link>
+          <a href="#" class="back-link" @click.prevent="handleBack">&larr; Alle runder</a>
           <div class="editor-top-actions">
             <button class="idea-toggle" @click="ideaPanelOpen = !ideaPanelOpen">Idebank</button>
             <button class="delete-round-btn" @click="handleDelete">Slett runde</button>
@@ -244,7 +249,18 @@ onBeforeUnmount(() => {
 .editor-main { transition: margin-right 0.3s ease; }
 .round-editor { max-width: 720px; margin: 0 auto; padding: var(--space-lg) var(--space-md) 6rem; }
 
-.editor-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-lg); }
+.editor-top {
+  display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-lg);
+}
+@media (max-width: 640px) {
+  .editor-top {
+    position: sticky; top: 0; z-index: 15;
+    background: var(--color-bg); padding: var(--space-sm) 0;
+    border-bottom: 1px solid var(--color-border-subtle);
+    margin: 0 calc(-1 * var(--space-md)); padding: var(--space-sm) var(--space-md);
+    margin-bottom: var(--space-lg);
+  }
+}
 .editor-top-actions { display: flex; align-items: center; gap: var(--space-md); }
 .back-link { font-family: var(--font-ui); font-size: 0.85rem; color: var(--color-text-muted); }
 .back-link:hover { color: var(--color-text); }
