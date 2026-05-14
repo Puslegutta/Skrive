@@ -100,7 +100,7 @@ function navigateTo(to) {
   padding: var(--space-sm) var(--space-lg);
   border-bottom: 1px solid var(--color-border);
   background: var(--color-bg-surface);
-  position: relative;
+  position: sticky; top: 0; z-index: 50;
 }
 .product-tabs { display: flex; gap: var(--space-xs); }
 .tab {

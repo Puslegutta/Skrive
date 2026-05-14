@@ -37,10 +37,16 @@ export function useIdeas() {
     idea.used = newUsed
   }
 
+  async function updateIdea(id, text) {
+    await client.patch(id).set({ text }).commit()
+    const idea = ideas.value.find(i => i._id === id)
+    if (idea) idea.text = text
+  }
+
   async function deleteIdea(id) {
     await client.delete(id)
     ideas.value = ideas.value.filter(i => i._id !== id)
   }
 
-  return { ideas, loading, fetchIdeas, addIdea, toggleUsed, deleteIdea }
+  return { ideas, loading, fetchIdeas, addIdea, toggleUsed, updateIdea, deleteIdea }
 }
