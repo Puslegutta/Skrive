@@ -1,5 +1,5 @@
 <script setup>
-import { ref, watch } from 'vue'
+import { ref, watch, onMounted, onBeforeUnmount } from 'vue'
 
 const props = defineProps({
   editor: { type: Object, default: null },
@@ -9,6 +9,7 @@ const emit = defineEmits(['mark'])
 
 const visible = ref(false)
 const position = ref({ top: 0, left: 0 })
+const popoverEl = ref(null)
 
 function updatePosition() {
   if (!props.editor) return
@@ -25,6 +26,20 @@ function updatePosition() {
 
 watch(() => props.editor?.state?.selection, () => updatePosition(), { deep: true })
 
+function dismissOnOutsideTouch(e) {
+  if (!visible.value) return
+  if (popoverEl.value?.contains(e.target)) return
+  visible.value = false
+}
+
+onMounted(() => {
+  document.addEventListener('pointerdown', dismissOnOutsideTouch, true)
+})
+
+onBeforeUnmount(() => {
+  document.removeEventListener('pointerdown', dismissOnOutsideTouch, true)
+})
+
 function handleMark(type) {
   emit('mark', type)
   visible.value = false
@@ -32,7 +47,7 @@ function handleMark(type) {
 </script>
 
 <template>
-  <div v-if="visible" class="tw-popover" :style="{ top: position.top + 'px', left: position.left + 'px' }">
+  <div v-if="visible" ref="popoverEl" class="tw-popover" :style="{ top: position.top + 'px', left: position.left + 'px' }">
     <button @mousedown.prevent="handleMark('transitionIn')" class="tw-btn tw-in">Inn</button>
     <button @mousedown.prevent="handleMark('transitionOut')" class="tw-btn tw-out">Ut</button>
   </div>
