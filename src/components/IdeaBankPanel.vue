@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, onMounted, nextTick } from 'vue'
 import { useIdeas } from '../composables/useIdeas.js'
+import ConfirmModal from './ConfirmModal.vue'
 
 const emit = defineEmits(['close'])
 const { ideas, loading, fetchIdeas, addIdea, toggleUsed, updateIdea, deleteIdea } = useIdeas()
@@ -67,8 +68,16 @@ async function handleArchive(id) {
   await toggleUsed(id)
 }
 
-async function handleDelete(id) {
-  if (!confirm('Slette denne ideen permanent?')) return
+const pendingDeleteId = ref(null)
+
+function handleDelete(id) {
+  pendingDeleteId.value = id
+}
+
+async function confirmDelete() {
+  const id = pendingDeleteId.value
+  pendingDeleteId.value = null
+  if (!id) return
   if (editingId.value === id) cancelEdit()
   await deleteIdea(id)
 }
@@ -120,6 +129,8 @@ onMounted(fetchIdeas)
         </div>
       </TransitionGroup>
     </div>
+
+    <ConfirmModal v-if="pendingDeleteId" message="Slette denne ideen permanent?" confirm-label="Slett" @confirm="confirmDelete" @cancel="pendingDeleteId = null" />
   </div>
 </template>
 
