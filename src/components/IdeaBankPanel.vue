@@ -62,7 +62,13 @@ function handleEditKeydown(e) {
   if (e.key === 'Escape') cancelEdit()
 }
 
+async function handleArchive(id) {
+  if (editingId.value === id) cancelEdit()
+  await toggleUsed(id)
+}
+
 async function handleDelete(id) {
+  if (!confirm('Slette denne ideen permanent?')) return
   if (editingId.value === id) cancelEdit()
   await deleteIdea(id)
 }
@@ -89,13 +95,13 @@ onMounted(fetchIdeas)
     </div>
 
     <div class="panel-filters">
-      <button v-for="f in [['active', 'Aktive'], ['used', 'Brukte'], ['all', 'Alle']]" :key="f[0]" :class="['filter-btn', { active: filter === f[0] }]" @click="filter = f[0]">
+      <button v-for="f in [['active', 'Aktive'], ['used', 'Arkiv'], ['all', 'Alle']]" :key="f[0]" :class="['filter-btn', { active: filter === f[0] }]" @click="filter = f[0]">
         {{ f[1] }} <span class="filter-count">{{ counts[f[0]] }}</span>
       </button>
     </div>
 
     <div v-if="loading" class="panel-loading">Laster...</div>
-    <div v-else-if="filteredIdeas.length === 0" class="panel-empty">{{ filter === 'active' ? 'Ingen aktive ideer' : filter === 'used' ? 'Ingen brukte ideer' : 'Ingen ideer ennå' }}</div>
+    <div v-else-if="filteredIdeas.length === 0" class="panel-empty">{{ filter === 'active' ? 'Ingen aktive ideer' : filter === 'used' ? 'Arkivet er tomt' : 'Ingen ideer ennå' }}</div>
     <div v-else class="panel-list">
       <TransitionGroup name="idea-list" tag="div">
         <div v-for="idea in filteredIdeas" :key="idea._id" :class="['idea-item', { used: idea.used, editing: editingId === idea._id }]">
@@ -108,7 +114,9 @@ onMounted(fetchIdeas)
           </div>
           <span v-else class="idea-text" @click="startEditing(idea)">{{ idea.text }}</span>
 
-          <button class="idea-delete" @click="handleDelete(idea._id)">&times;</button>
+          <button v-if="!idea.used" class="idea-archive" @click="handleArchive(idea._id)" title="Arkiver">&#10003;</button>
+          <button v-if="idea.used" class="idea-restore" @click="toggleUsed(idea._id)" title="Gjenopprett">&#8634;</button>
+          <button v-if="idea.used" class="idea-delete" @click="handleDelete(idea._id)" title="Slett permanent">&times;</button>
         </div>
       </TransitionGroup>
     </div>
@@ -275,19 +283,22 @@ onMounted(fetchIdeas)
   resize: none;
 }
 
-.idea-delete {
+.idea-archive, .idea-restore, .idea-delete {
   font-size: 1rem;
   color: var(--color-text-muted);
   opacity: 0;
   flex-shrink: 0;
   transition: opacity 0.15s, color 0.15s;
 }
+.idea-item:hover .idea-archive,
+.idea-item:hover .idea-restore,
 .idea-item:hover .idea-delete { opacity: 1; }
+.idea-archive:hover { color: var(--color-chain-ok); }
+.idea-restore:hover { color: var(--color-transition-in); }
 .idea-delete:hover { color: var(--color-chain-break); }
 
-/* On mobile, always show delete button */
 @media (max-width: 640px) {
-  .idea-delete { opacity: 0.5; }
+  .idea-archive, .idea-restore, .idea-delete { opacity: 0.5; }
 }
 
 /* List transitions */
