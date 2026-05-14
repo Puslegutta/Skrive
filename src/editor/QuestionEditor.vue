@@ -37,8 +37,8 @@ const editor = useEditor({
 })
 
 watch(
-  () => props.portableText,
-  (pt) => {
+  [() => props.portableText, editor],
+  ([pt]) => {
     if (!editor.value || !pt) return
     const block = Array.isArray(pt) ? pt[0] : pt
     if (!block) return

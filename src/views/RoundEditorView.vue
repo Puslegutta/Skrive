@@ -12,8 +12,22 @@ const router = useRouter()
 const { rounds, loading, error, fetchRounds, saveRound, deleteRound } = useRounds()
 
 const round = ref(null)
+const savedSnapshot = ref(null)
 const saving = ref(false)
 const saveStatus = ref('')
+const hasChanges = computed(() => {
+  if (!round.value || !savedSnapshot.value) return false
+  return JSON.stringify(round.value) !== savedSnapshot.value
+})
+
+function takeSnapshot() {
+  savedSnapshot.value = JSON.stringify(round.value)
+}
+
+function revert() {
+  if (!savedSnapshot.value) return
+  round.value = JSON.parse(savedSnapshot.value)
+}
 
 function extractAnnotationFromPT(blocks, type) {
   if (!Array.isArray(blocks)) return null
@@ -100,6 +114,7 @@ async function handleSave() {
         imageNote: q.imageNote || undefined,
       })),
     })
+    takeSnapshot()
     saveStatus.value = 'Lagret'
     setTimeout(() => { saveStatus.value = '' }, 2000)
   } catch (e) {
@@ -128,6 +143,7 @@ onMounted(async () => {
   const found = rounds.value.find(r => r._id === route.params.id)
   if (found) {
     round.value = JSON.parse(JSON.stringify(found))
+    takeSnapshot()
   }
 })
 
@@ -175,6 +191,7 @@ onBeforeUnmount(() => {
     <button v-if="(round.questions || []).length < 10" class="add-question-btn" @click="addQuestion">+ Legg til sporsmal</button>
 
     <div class="save-bar">
+      <button v-if="hasChanges" class="revert-btn" @click="revert">Angre</button>
       <span class="save-status">{{ saveStatus }}</span>
       <button class="save-btn" :disabled="saving" @click="handleSave">Lagre</button>
     </div>
@@ -204,9 +221,11 @@ onBeforeUnmount(() => {
 .questions-flow { margin-bottom: var(--space-lg); }
 .add-question-btn { font-family: var(--font-ui); font-size: 0.9rem; font-weight: 600; color: var(--color-text-muted); padding: var(--space-md) 0; width: 100%; text-align: center; border: 1px dashed var(--color-border); border-radius: var(--radius-md); margin-bottom: var(--space-xl); }
 .add-question-btn:hover { color: var(--color-text); border-color: var(--color-text-muted); }
-.save-bar { position: fixed; bottom: 0; left: 0; right: 0; display: flex; align-items: center; justify-content: flex-end; gap: var(--space-md); padding: var(--space-sm) var(--space-lg); background: var(--color-bg-elevated); border-top: 1px solid var(--color-border); z-index: 20; }
+.save-bar { position: fixed; bottom: 0; left: 0; right: 0; display: flex; align-items: center; justify-content: center; gap: var(--space-md); padding: var(--space-sm) var(--space-lg); background: var(--color-bg-elevated); border-top: 1px solid var(--color-border); z-index: 20; }
 .save-status { font-family: var(--font-ui); font-size: 0.85rem; color: var(--color-text-muted); }
-.save-btn { font-family: var(--font-ui); font-weight: 600; padding: var(--space-sm) var(--space-xl); background: var(--color-primary); color: var(--color-bg); border-radius: var(--radius-md); }
+.save-btn { font-family: var(--font-ui); font-weight: 600; padding: var(--space-sm) 4rem; background: var(--color-primary); color: var(--color-bg); border-radius: var(--radius-md); }
 .save-btn:hover { background: var(--color-primary-hover); }
 .save-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.revert-btn { font-family: var(--font-ui); font-size: 0.85rem; color: var(--color-text-muted); padding: var(--space-sm) var(--space-lg); border-radius: var(--radius-md); border: 1px solid var(--color-border); }
+.revert-btn:hover { color: var(--color-chain-break); border-color: var(--color-chain-break); }
 </style>

@@ -67,7 +67,7 @@ function handleTransitionMark(editorRef, type) {
       </div>
 
       <div class="field-extra">
-        <textarea :value="question.extraInfo || ''" @input="updateField('extraInfo', $event.target.value)" placeholder="Tilleggstekst..." rows="1" class="extra-input" />
+        <textarea :value="question.extraInfo || ''" @input="updateField('extraInfo', $event.target.value)" ref="extraTextarea" placeholder="Tilleggstekst..." rows="2" class="extra-input" />
       </div>
 
       <button class="toggle-extras" @click="showExtras = !showExtras">{{ showExtras ? '&#9662;' : '&#9656;' }} Mer</button>
@@ -106,7 +106,7 @@ function handleTransitionMark(editorRef, type) {
 .remove-option { font-size: 1rem; color: var(--color-text-muted); opacity: 0; }
 .option-row:hover .remove-option { opacity: 1; }
 .add-option { font-family: var(--font-ui); font-size: 0.8rem; color: var(--color-text-muted); text-align: left; padding: 2px 0; }
-.extra-input { width: 100%; font-size: 0.9rem; font-style: italic; color: var(--color-text-secondary); resize: none; padding: var(--space-xs) 0; border-bottom: 1px solid transparent; }
+.extra-input { width: 100%; font-size: 0.9rem; font-style: italic; color: var(--color-text-secondary); resize: vertical; padding: var(--space-xs) 0; border-bottom: 1px solid transparent; min-height: 3em; }
 .extra-input:focus { border-bottom-color: var(--color-border); }
 .toggle-extras { font-family: var(--font-ui); font-size: 0.8rem; color: var(--color-text-muted); text-align: left; }
 .extras-panel { display: flex; flex-direction: column; gap: var(--space-sm); padding: var(--space-sm); background: var(--color-bg); border-radius: var(--radius-sm); }
