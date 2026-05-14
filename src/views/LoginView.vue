@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useAuth } from '../composables/useAuth.js'
 import { useRouter } from 'vue-router'
 
@@ -7,15 +7,24 @@ const { login } = useAuth()
 const router = useRouter()
 const passcode = ref('')
 const error = ref(false)
+const inputEl = ref(null)
 
 function handleLogin() {
-  if (login(passcode.value)) {
+  const value = passcode.value || inputEl.value?.value || ''
+  if (login(value)) {
     router.push('/')
   } else {
     error.value = true
     passcode.value = ''
   }
 }
+
+onMounted(() => {
+  // Auto-submit after browser/Face ID autofill
+  setTimeout(() => {
+    if (inputEl.value?.value) handleLogin()
+  }, 500)
+})
 </script>
 
 <template>
@@ -24,7 +33,7 @@ function handleLogin() {
       <h1>Puslegutta</h1>
       <p>Skriveapp</p>
       <form @submit.prevent="handleLogin">
-        <input v-model="passcode" type="password" placeholder="Passord" autofocus />
+        <input ref="inputEl" v-model="passcode" type="password" autocomplete="current-password" placeholder="Passord" autofocus @change="handleLogin" />
         <button type="submit">Logg inn</button>
         <p v-if="error" class="error">Feil passord</p>
       </form>
