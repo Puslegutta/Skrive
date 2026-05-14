@@ -7,6 +7,7 @@ import QuestionBlock from '../components/QuestionBlock.vue'
 import TransitionChainLink from '../components/TransitionChainLink.vue'
 import StatusBadge from '../components/StatusBadge.vue'
 import IdeaBankPanel from '../components/IdeaBankPanel.vue'
+import ConfirmModal from '../components/ConfirmModal.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -18,6 +19,25 @@ const initialized = ref(false)
 const saving = ref(false)
 const saveStatus = ref('')
 const ideaPanelOpen = ref(false)
+const confirmAction = ref(null)
+const confirmMessage = ref('')
+
+function showConfirm(message, action) {
+  confirmMessage.value = message
+  confirmAction.value = action
+}
+
+function handleConfirm() {
+  const action = confirmAction.value
+  confirmAction.value = null
+  confirmMessage.value = ''
+  if (action) action()
+}
+
+function handleCancelConfirm() {
+  confirmAction.value = null
+  confirmMessage.value = ''
+}
 const hasChanges = computed(() => {
   if (!initialized.value || !round.value || !savedSnapshot.value) return false
   return JSON.stringify(round.value) !== savedSnapshot.value
@@ -138,14 +158,18 @@ async function handleSave() {
   }
 }
 
-async function handleDelete() {
-  if (!confirm('Slette denne runden?')) return
-  await deleteRound(route.params.id)
-  router.push('/')
+function handleDelete() {
+  showConfirm('Slette denne runden?', async () => {
+    await deleteRound(route.params.id)
+    router.push('/')
+  })
 }
 
 function handleBack() {
-  if (hasChanges.value && !confirm('Du har ulagrede endringer. Vil du forlate siden?')) return
+  if (hasChanges.value) {
+    showConfirm('Du har ulagrede endringer. Vil du forlate siden?', () => router.push('/'))
+    return
+  }
   router.push('/')
 }
 
@@ -238,6 +262,8 @@ onBeforeUnmount(() => {
       <span class="save-status">{{ saveStatus }}</span>
       <button class="save-btn" :disabled="saving" @click="handleSave">Lagre</button>
     </div>
+
+    <ConfirmModal v-if="confirmAction" :message="confirmMessage" @confirm="handleConfirm" @cancel="handleCancelConfirm" />
   </div>
 </template>
 

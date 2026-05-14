@@ -71,21 +71,21 @@ function navigateTo(to) {
           <span /><span /><span />
         </span>
       </button>
-    </header>
 
-    <Transition name="dropdown">
-      <div v-if="menuOpen" class="mobile-menu mobile-only">
-        <div class="menu-section-label">Apper</div>
-        <button v-for="tab in tabs" :key="tab.label" :class="['mobile-nav-item', { active: tab.active, disabled: !tab.active }]" @click="tab.to && navigateTo(tab.to)">{{ tab.label }}</button>
-        <div class="mobile-divider" />
-        <div class="menu-section-label">Innhold</div>
-        <button v-for="item in navItems" :key="item.to" :class="['mobile-nav-item', { active: route.path === item.to }]" @click="navigateTo(item.to)">{{ item.label }}</button>
-        <div class="mobile-divider" />
-        <div class="menu-section-label">Innstillinger</div>
-        <button class="mobile-nav-item" @click="toggleDarkMode(); menuOpen = false">{{ darkMode ? 'Light mode' : 'Dark mode' }}</button>
-        <button class="mobile-nav-item" @click="handleLogout">Logg ut</button>
-      </div>
-    </Transition>
+      <Transition name="dropdown">
+        <div v-if="menuOpen" class="mobile-menu mobile-only">
+          <div class="menu-section-label">Apper</div>
+          <button v-for="tab in tabs" :key="tab.label" :class="['mobile-nav-item', { active: tab.active, disabled: !tab.active }]" @click="tab.to && navigateTo(tab.to)">{{ tab.label }}</button>
+          <div class="mobile-divider" />
+          <div class="menu-section-label">Innhold</div>
+          <button v-for="item in navItems" :key="item.to" :class="['mobile-nav-item', { active: route.path === item.to }]" @click="navigateTo(item.to)">{{ item.label }}</button>
+          <div class="mobile-divider" />
+          <div class="menu-section-label">Innstillinger</div>
+          <button class="mobile-nav-item" @click="toggleDarkMode(); menuOpen = false">{{ darkMode ? 'Light mode' : 'Dark mode' }}</button>
+          <button class="mobile-nav-item" @click="handleLogout">Logg ut</button>
+        </div>
+      </Transition>
+    </header>
 
     <main class="app-main">
       <slot />

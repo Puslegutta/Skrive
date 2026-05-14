@@ -1,6 +1,6 @@
 # Skrive
 
-Visual editor for writing and editing Iddiotquiz rounds — no markdown, no VS Code. Built for mobile-first use with a warm, book-like aesthetic.
+Visual editor for writing and editing Iddiotquiz rounds — no markdown, no VS Code. Built for mobile-first use with a warm, book-like aesthetic. Uses [Sanity CMS](https://www.sanity.io/) as backend — reads and writes quiz data directly via the Sanity API, so all content stays in the existing Sanity dataset used by the quiz app.
 
 **Live:** https://skrive-cms.pages.dev
 
