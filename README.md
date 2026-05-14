@@ -1,8 +1,16 @@
 # Skrive
 
-Visual editor for writing and editing Iddiotquiz rounds — no markdown, no VS Code. Built for mobile-first use with a warm, book-like aesthetic. Uses [Sanity CMS](https://www.sanity.io/) as backend — reads and writes quiz data directly via the Sanity API, so all content stays in the existing Sanity dataset used by the quiz app.
+Skreddersydd visuell editor for å skrive innhold til Puslegutta-appene — uten markdown, uten VS Code, rett fra mobilen.
 
 **Live:** https://skrive-cms.pages.dev
+
+## Hvorfor Skrive når vi har Sanity?
+
+[Sanity Studio](https://github.com/Puslegutta/PusleguttaCMS) er bra som CMS og database, men er et generisk verktøy som ikke er designet for den kreative skriveprosessen. Å skrive quizrunder i Sanity Studio (eller i VS Code med markdown) krevde manuell nummerering, skjemafelt etter skjemafelt, og terminalen for å deploye. Det funket ikke på mobil, det var feilbarlig, og det var demotiverende — resultatet var at innholdsproduksjon stoppet opp.
+
+Skrive er bygget for å løse dette: en mobilvennlig app der hele runden vises som et sammenhengende, redigerbart dokument — som å skrive i en bok, ikke fylle ut et skjema. Sanity lever videre som database og for bildehåndtering, mens Skrive er det daglige skriveverktøyet.
+
+Appen er foreløpig bygget for [Iddiotquiz](https://github.com/Puslegutta/Iddiotquiz), men arkitekturen er laget for å enkelt legge til nye produkter (Wrd, fremtidige apper) som egne moduler med felles shell.
 
 ## Features
 
