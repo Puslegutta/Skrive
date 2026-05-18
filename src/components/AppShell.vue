@@ -1,7 +1,7 @@
 <script setup>
 import { useAuth } from '../composables/useAuth.js'
 import { useRouter, useRoute } from 'vue-router'
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 
 const { logout } = useAuth()
 const router = useRouter()
@@ -42,11 +42,20 @@ function navigateTo(to) {
   router.push(to)
   menuOpen.value = false
 }
+
+const headerEl = ref(null)
+
+onMounted(() => {
+  if (headerEl.value) {
+    const h = headerEl.value.offsetHeight
+    document.documentElement.style.setProperty('--app-header-height', `${h}px`)
+  }
+})
 </script>
 
 <template>
   <div class="app-shell">
-    <header class="app-header">
+    <header ref="headerEl" class="app-header">
       <div class="product-tabs">
         <button
           v-for="tab in tabs"

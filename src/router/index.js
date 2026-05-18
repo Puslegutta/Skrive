@@ -1,5 +1,10 @@
 import { createRouter, createWebHistory } from 'vue-router'
 
+// Prevent browser's own scroll restoration from interfering
+if ('scrollRestoration' in history) {
+  history.scrollRestoration = 'manual'
+}
+
 const routes = [
   { path: '/login', name: 'login', component: () => import('../views/LoginView.vue') },
   { path: '/', name: 'rounds', component: () => import('../views/RoundListView.vue') },
@@ -12,7 +17,7 @@ const router = createRouter({
   routes,
 })
 
-router.beforeEach((to) => {
+router.beforeEach((to, from) => {
   const authed = sessionStorage.getItem('auth') === 'true'
   if (!authed && to.name !== 'login') return { name: 'login' }
   if (authed && to.name === 'login') return { name: 'rounds' }

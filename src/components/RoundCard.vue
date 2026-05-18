@@ -1,6 +1,11 @@
 <script setup>
+import { computed } from 'vue'
 import StatusBadge from './StatusBadge.vue'
+import { getRating } from '../composables/useLocalRatings.js'
+
 const props = defineProps({ round: { type: Object, required: true } })
+
+const rating = computed(() => getRating(props.round._id))
 
 function getPreview(round) {
   if (round.cardPitch) return round.cardPitch
@@ -15,7 +20,10 @@ function getPreview(round) {
   <router-link :to="`/round/${round._id}`" class="round-card">
     <div class="round-header">
       <span class="round-number">{{ round.roundNumber ? `Runde ${round.roundNumber}` : 'Utkast' }}</span>
-      <StatusBadge :status="round.status || 'draft'" />
+      <div class="round-tags">
+        <span v-if="rating" class="rating-stars">{{ '\u2605'.repeat(rating) }}</span>
+        <StatusBadge :status="round.status || 'draft'" />
+      </div>
     </div>
     <p class="round-preview">{{ getPreview(round) }}</p>
     <div class="round-meta">
@@ -27,6 +35,8 @@ function getPreview(round) {
 .round-card { display: block; padding: var(--space-lg); background: var(--color-bg-surface); border: 1px solid var(--color-border-subtle); border-radius: var(--radius-md); text-decoration: none; color: inherit; transition: border-color 0.15s; }
 .round-card:hover { border-color: var(--color-border); }
 .round-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-sm); }
+.round-tags { display: flex; align-items: center; gap: var(--space-sm); }
+.rating-stars { font-size: 0.8rem; color: var(--color-status-in-progress); letter-spacing: 1px; }
 .round-number { font-family: var(--font-ui); font-weight: 700; font-size: 0.9rem; }
 .round-preview { color: var(--color-text-secondary); font-size: 0.95rem; line-height: 1.5; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .round-meta { margin-top: var(--space-sm); }

@@ -4,7 +4,8 @@ import { useSanityClient } from './useSanityClient.js'
 const IDEAS_QUERY = `*[_type == "iddiotIdea"] | order(_createdAt desc) {
   _id,
   text,
-  used
+  used,
+  archived
 }`
 
 export function useIdeas() {
@@ -24,9 +25,9 @@ export function useIdeas() {
   }
 
   async function addIdea(text) {
-    const doc = { _type: 'iddiotIdea', text, used: false }
+    const doc = { _type: 'iddiotIdea', text, used: false, archived: false }
     const result = await client.create(doc)
-    ideas.value.unshift({ _id: result._id, text, used: false })
+    ideas.value.unshift({ _id: result._id, text, used: false, archived: false })
   }
 
   async function toggleUsed(id) {
@@ -35,6 +36,20 @@ export function useIdeas() {
     const newUsed = !idea.used
     await client.patch(id).set({ used: newUsed }).commit()
     idea.used = newUsed
+  }
+
+  async function archiveIdea(id) {
+    const idea = ideas.value.find(i => i._id === id)
+    if (!idea) return
+    await client.patch(id).set({ archived: true }).commit()
+    idea.archived = true
+  }
+
+  async function restoreIdea(id) {
+    const idea = ideas.value.find(i => i._id === id)
+    if (!idea) return
+    await client.patch(id).set({ archived: false }).commit()
+    idea.archived = false
   }
 
   async function updateIdea(id, text) {
@@ -48,5 +63,5 @@ export function useIdeas() {
     ideas.value = ideas.value.filter(i => i._id !== id)
   }
 
-  return { ideas, loading, fetchIdeas, addIdea, toggleUsed, updateIdea, deleteIdea }
+  return { ideas, loading, fetchIdeas, addIdea, toggleUsed, archiveIdea, restoreIdea, updateIdea, deleteIdea }
 }

@@ -4,7 +4,7 @@ import { useIdeas } from '../composables/useIdeas.js'
 import ConfirmModal from './ConfirmModal.vue'
 
 const emit = defineEmits(['close'])
-const { ideas, loading, fetchIdeas, addIdea, toggleUsed, updateIdea, deleteIdea } = useIdeas()
+const { ideas, loading, fetchIdeas, addIdea, toggleUsed, archiveIdea, restoreIdea, updateIdea, deleteIdea } = useIdeas()
 
 const newIdeaText = ref('')
 const filter = ref('active')
@@ -12,14 +12,14 @@ const editingId = ref(null)
 const editText = ref('')
 
 const filteredIdeas = computed(() => {
-  if (filter.value === 'active') return ideas.value.filter(i => !i.used)
-  if (filter.value === 'used') return ideas.value.filter(i => i.used)
+  if (filter.value === 'active') return ideas.value.filter(i => !i.archived)
+  if (filter.value === 'archived') return ideas.value.filter(i => i.archived)
   return ideas.value
 })
 
 const counts = computed(() => ({
-  active: ideas.value.filter(i => !i.used).length,
-  used: ideas.value.filter(i => i.used).length,
+  active: ideas.value.filter(i => !i.archived).length,
+  archived: ideas.value.filter(i => i.archived).length,
   all: ideas.value.length,
 }))
 
@@ -65,7 +65,7 @@ function handleEditKeydown(e) {
 
 async function handleArchive(id) {
   if (editingId.value === id) cancelEdit()
-  await toggleUsed(id)
+  await archiveIdea(id)
 }
 
 const pendingDeleteId = ref(null)
@@ -104,18 +104,18 @@ onMounted(fetchIdeas)
     </div>
 
     <div class="panel-filters">
-      <button v-for="f in [['active', 'Aktive'], ['used', 'Arkiv'], ['all', 'Alle']]" :key="f[0]" :class="['filter-btn', { active: filter === f[0] }]" @click="filter = f[0]">
+      <button v-for="f in [['active', 'Aktive'], ['archived', 'Arkiv'], ['all', 'Alle']]" :key="f[0]" :class="['filter-btn', { active: filter === f[0] }]" @click="filter = f[0]">
         {{ f[1] }} <span class="filter-count">{{ counts[f[0]] }}</span>
       </button>
     </div>
 
     <div v-if="loading" class="panel-loading">Laster...</div>
-    <div v-else-if="filteredIdeas.length === 0" class="panel-empty">{{ filter === 'active' ? 'Ingen aktive ideer' : filter === 'used' ? 'Arkivet er tomt' : 'Ingen ideer ennå' }}</div>
+    <div v-else-if="filteredIdeas.length === 0" class="panel-empty">{{ filter === 'active' ? 'Ingen aktive ideer' : filter === 'archived' ? 'Arkivet er tomt' : 'Ingen ideer enna' }}</div>
     <div v-else class="panel-list">
       <TransitionGroup name="idea-list" tag="div">
-        <div v-for="idea in filteredIdeas" :key="idea._id" :class="['idea-item', { used: idea.used, editing: editingId === idea._id }]">
-          <button class="idea-check" @click="toggleUsed(idea._id)">
-            {{ idea.used ? '&#9745;' : '&#9744;' }}
+        <div v-for="idea in filteredIdeas" :key="idea._id" :class="['idea-item', { used: idea.used, archived: idea.archived, editing: editingId === idea._id }]">
+          <button v-if="!idea.archived" class="idea-check" @click="toggleUsed(idea._id)">
+            {{ idea.used ? '\u2611' : '\u2610' }}
           </button>
 
           <div v-if="editingId === idea._id" class="idea-edit-wrap">
@@ -123,9 +123,9 @@ onMounted(fetchIdeas)
           </div>
           <span v-else class="idea-text" @click="startEditing(idea)">{{ idea.text }}</span>
 
-          <button v-if="!idea.used" class="idea-archive" @click="handleArchive(idea._id)" title="Arkiver">&#10003;</button>
-          <button v-if="idea.used" class="idea-restore" @click="toggleUsed(idea._id)" title="Gjenopprett">&#8634;</button>
-          <button v-if="idea.used" class="idea-delete" @click="handleDelete(idea._id)" title="Slett permanent">&times;</button>
+          <button v-if="!idea.archived" class="idea-archive" @click="handleArchive(idea._id)" title="Arkiver">&#8681;</button>
+          <button v-if="idea.archived" class="idea-restore" @click="restoreIdea(idea._id)" title="Gjenopprett">&#8634;</button>
+          <button v-if="idea.archived" class="idea-delete" @click="handleDelete(idea._id)" title="Slett permanent">&times;</button>
         </div>
       </TransitionGroup>
     </div>
@@ -255,6 +255,10 @@ onMounted(fetchIdeas)
   text-decoration: line-through;
   color: var(--color-text-muted);
 }
+.idea-item.archived .idea-text {
+  color: var(--color-text-muted);
+  font-style: italic;
+}
 
 .idea-check {
   font-size: 1.1rem;
@@ -304,7 +308,7 @@ onMounted(fetchIdeas)
 .idea-item:hover .idea-archive,
 .idea-item:hover .idea-restore,
 .idea-item:hover .idea-delete { opacity: 1; }
-.idea-archive:hover { color: var(--color-chain-ok); }
+.idea-archive:hover { color: var(--color-text-secondary); }
 .idea-restore:hover { color: var(--color-transition-in); }
 .idea-delete:hover { color: var(--color-chain-break); }
 

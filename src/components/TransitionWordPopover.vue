@@ -1,11 +1,11 @@
 <script setup>
-import { ref, watch, onMounted, onBeforeUnmount } from 'vue'
+import { ref, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
 
 const props = defineProps({
   editor: { type: Object, default: null },
 })
 
-const emit = defineEmits(['mark'])
+const emit = defineEmits(['mark', 'remove'])
 
 const visible = ref(false)
 const position = ref({ top: 0, left: 0 })
@@ -22,6 +22,20 @@ function updatePosition() {
     top: coords.top - editorRect.top - 40,
     left: coords.left - editorRect.left,
   }
+  nextTick(() => {
+    if (!popoverEl.value) return
+    const rect = popoverEl.value.getBoundingClientRect()
+    const margin = 8
+    if (rect.right > window.innerWidth - margin) {
+      position.value = { ...position.value, left: position.value.left - (rect.right - window.innerWidth + margin) }
+    }
+    if (rect.left < margin) {
+      position.value = { ...position.value, left: position.value.left + (margin - rect.left) }
+    }
+    if (rect.top < margin) {
+      position.value = { ...position.value, top: position.value.top + (margin - rect.top) }
+    }
+  })
 }
 
 watch(() => props.editor?.state?.selection, () => updatePosition(), { deep: true })
@@ -44,11 +58,17 @@ function handleMark(type) {
   emit('mark', type)
   visible.value = false
 }
+
+function handleRemove() {
+  emit('remove')
+  visible.value = false
+}
 </script>
 
 <template>
   <div v-if="visible" ref="popoverEl" class="tw-popover" :style="{ top: position.top + 'px', left: position.left + 'px' }">
     <button @mousedown.prevent="handleMark('transitionIn')" class="tw-btn tw-in">Inn</button>
+    <button @mousedown.prevent="handleRemove" class="tw-btn tw-remove">Fjern</button>
     <button @mousedown.prevent="handleMark('transitionOut')" class="tw-btn tw-out">Ut</button>
   </div>
 </template>
@@ -62,5 +82,7 @@ function handleMark(type) {
 }
 .tw-btn { font-family: var(--font-ui); font-size: 0.75rem; font-weight: 600; padding: 4px 10px; border-radius: 3px; }
 .tw-in:hover { background: var(--color-transition-in-bg); color: var(--color-transition-in); }
+.tw-remove { opacity: 0.5; }
+.tw-remove:hover { opacity: 1; background: var(--color-bg-muted); }
 .tw-out:hover { background: var(--color-transition-out-bg); color: var(--color-transition-out); }
 </style>

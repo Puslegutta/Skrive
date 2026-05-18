@@ -1,8 +1,9 @@
 <script setup>
-import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
+import { useRoute, useRouter, onBeforeRouteLeave } from 'vue-router'
 import { useRounds } from '../composables/useRounds.js'
 import { findNextRoundNumber } from '../composables/useAutoNumber.js'
+import { getRating, setRating } from '../composables/useLocalRatings.js'
 import QuestionBlock from '../components/QuestionBlock.vue'
 import TransitionChainLink from '../components/TransitionChainLink.vue'
 import StatusBadge from '../components/StatusBadge.vue'
@@ -21,6 +22,7 @@ const saveStatus = ref('')
 const ideaPanelOpen = ref(false)
 const confirmAction = ref(null)
 const confirmMessage = ref('')
+let pendingNavigation = null
 
 function showConfirm(message, action) {
   confirmMessage.value = message
@@ -37,6 +39,7 @@ function handleConfirm() {
 function handleCancelConfirm() {
   confirmAction.value = null
   confirmMessage.value = ''
+  pendingNavigation = null
 }
 const hasChanges = computed(() => {
   if (!initialized.value || !round.value || !savedSnapshot.value) return false
@@ -79,6 +82,7 @@ function getTransitionOut(question) {
   if (!question) return null
   return extractAnnotationFromPT(question.question, 'transitionOut')
     || extractAnnotationFromPT(question.answer, 'transitionOut')
+    || extractAnnotationFromPT(question.extraInfo, 'transitionOut')
     || question.transitionOut || null
 }
 
@@ -86,6 +90,7 @@ function getTransitionIn(question) {
   if (!question) return null
   return extractAnnotationFromPT(question.question, 'transitionIn')
     || extractAnnotationFromPT(question.answer, 'transitionIn')
+    || extractAnnotationFromPT(question.extraInfo, 'transitionIn')
     || question.transitionIn || null
 }
 
@@ -99,7 +104,18 @@ function updateQuestion(index, updated) {
 }
 
 function deleteQuestion(index) {
-  round.value.questions.splice(index, 1)
+  showConfirm('Slette dette sporsmalet?', () => {
+    round.value.questions.splice(index, 1)
+  })
+}
+
+function moveQuestion(index, direction) {
+  const target = index + direction
+  if (target < 0 || target >= round.value.questions.length) return
+  const questions = [...round.value.questions]
+  const [moved] = questions.splice(index, 1)
+  questions.splice(target, 0, moved)
+  round.value.questions = questions
 }
 
 function addQuestion() {
@@ -126,6 +142,83 @@ function setStatus(status) {
   }
 }
 
+function ptToText(blocks) {
+  if (!Array.isArray(blocks)) return blocks || ''
+  return blocks.map(b => b.children?.map(c => c.text).join('') || '').join(' ')
+}
+
+const localRating = ref(0)
+
+function toggleRating(n) {
+  const newVal = localRating.value === n ? 0 : n
+  localRating.value = newVal
+  setRating(route.params.id, newVal)
+}
+
+const copiedBtn = ref('')
+
+function buildRoundText() {
+  if (!round.value) return ''
+  const lines = []
+  lines.push(title.value)
+  if (round.value.cardPitch) lines.push(`Kortpitch: ${round.value.cardPitch}`)
+  lines.push('')
+
+  for (let i = 0; i < (round.value.questions || []).length; i++) {
+    const q = round.value.questions[i]
+    const qText = ptToText(q.question)
+    const aText = ptToText(q.answer)
+    lines.push(`${i + 1}. ${qText}`)
+    lines.push(`   Svar: ${aText}`)
+    if (q.options?.length) {
+      lines.push(`   Alternativer: ${q.options.filter(o => o).join(', ')}`)
+    }
+    const extra = ptToText(q.extraInfo)
+    if (extra) lines.push(`   Tilleggstekst: ${extra}`)
+    const tin = getTransitionIn(q)
+    const tout = getTransitionOut(q)
+    if (tin || tout) lines.push(`   Overgangsord: ${[tin && `inn: ${tin}`, tout && `ut: ${tout}`].filter(Boolean).join(', ')}`)
+    lines.push('')
+  }
+  return lines.join('\n')
+}
+
+const AI_REVIEW_PROMPT = `Du er en faktasjekker og quizredaktør. Gå gjennom denne quizrunden fra Iddiotquiz.
+
+Konseptet: En runde har 3\u201310 spørsmål i kjede. Svaret på hvert spørsmål inneholder et «overgangsord» som kobler til neste spørsmål — enten bokstavelig (et ord som går igjen) eller tematisk. Spillerne ser ikke svaret før de har svart, så overgangen er en skjult kobling.
+
+Sjekk følgende:
+1. FAKTA: Er alle spørsmål og svar faktisk korrekte? Merk eventuelle feil eller tvilstilfeller.
+2. OVERGANGER: Fungerer koblingen mellom hvert spørsmål? Er overgangsordene tydelige nok?
+3. VANSKELIGHETSGRAD: Er runden balansert i vanskelighetsgrad, eller er noen spørsmål mye vanskeligere/lettere enn resten?
+4. ALTERNATIVER: Er de gale svaralternativene troverdige men tydelig feil? Er de for lette å eliminere?
+5. FORMULERING: Er spørsmålene klare og entydige? Kan noe misforstås?
+6. TILLEGGSTEKST: Er «visste du at»-tekstene interessante og korrekte?
+
+Gi konkret tilbakemelding per spørsmål der du finner noe. Avslutt med en kort oppsummering.
+
+Her er runden:
+
+`
+
+async function copyToClipboard(text, btnId) {
+  try {
+    await navigator.clipboard.writeText(text)
+    copiedBtn.value = btnId
+  } catch {
+    copiedBtn.value = ''
+  }
+  setTimeout(() => { copiedBtn.value = '' }, 2000)
+}
+
+async function copyRoundAsText() {
+  await copyToClipboard(buildRoundText(), 'copy')
+}
+
+async function copyForAIReview() {
+  await copyToClipboard(AI_REVIEW_PROMPT + buildRoundText(), 'ai')
+}
+
 async function handleSave() {
   if (!round.value || saving.value) return
   saving.value = true
@@ -149,6 +242,7 @@ async function handleSave() {
     })
     takeSnapshot()
     localStorage.removeItem(`skrive-draft-${route.params.id}`)
+    localStorage.setItem('skrive-last-edited', route.params.id)
     saveStatus.value = 'Lagret'
     setTimeout(() => { saveStatus.value = '' }, 2000)
   } catch (e) {
@@ -165,12 +259,16 @@ function handleDelete() {
   })
 }
 
-function handleBack() {
-  if (hasChanges.value) {
-    showConfirm('Du har ulagrede endringer. Vil du forlate siden?', () => router.push('/'))
-    return
+function goBack() {
+  if (window.history.length > 1) {
+    router.back()
+  } else {
+    router.push('/')
   }
-  router.push('/')
+}
+
+function handleBack() {
+  goBack()
 }
 
 function handleKeydown(e) {
@@ -180,8 +278,19 @@ function handleKeydown(e) {
   }
 }
 
+const headerHidden = ref(false)
+let lastScrollY = 0
+
+function handleScroll() {
+  const y = window.scrollY
+  headerHidden.value = y > lastScrollY && y > 60
+  lastScrollY = y
+}
+
 onMounted(async () => {
   window.addEventListener('keydown', handleKeydown)
+  window.addEventListener('scroll', handleScroll, { passive: true })
+  window.addEventListener('beforeunload', handleBeforeUnload)
   await fetchRounds()
   const found = rounds.value.find(r => r._id === route.params.id)
   if (found) {
@@ -191,6 +300,7 @@ onMounted(async () => {
     } else {
       round.value = JSON.parse(JSON.stringify(found))
     }
+    localRating.value = getRating(route.params.id)
     // Let TipTap editors initialize and round-trip before taking snapshot
     setTimeout(() => {
       takeSnapshot()
@@ -199,8 +309,31 @@ onMounted(async () => {
   }
 })
 
+// Warn on browser refresh/close with unsaved changes
+function handleBeforeUnload(e) {
+  if (hasChanges.value) {
+    e.preventDefault()
+  }
+}
+
+// Warn on in-app navigation (nav links, browser back)
+let leaveConfirmed = false
+
+onBeforeRouteLeave((to) => {
+  if (leaveConfirmed || !hasChanges.value) return true
+  pendingNavigation = to.fullPath
+  showConfirm('Du har ulagrede endringer. Vil du forlate siden?', () => {
+    localStorage.removeItem(`skrive-draft-${route.params.id}`)
+    leaveConfirmed = true
+    router.push(pendingNavigation)
+  })
+  return false
+})
+
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', handleKeydown)
+  window.removeEventListener('beforeunload', handleBeforeUnload)
+  window.removeEventListener('scroll', handleScroll)
 })
 </script>
 
@@ -211,7 +344,7 @@ onBeforeUnmount(() => {
   <div v-else :class="['editor-layout', { 'panel-open': ideaPanelOpen }]">
     <div class="editor-main">
       <div class="round-editor">
-        <div class="editor-top">
+        <div class="editor-top" :class="{ 'header-hidden': headerHidden }">
           <a href="#" class="back-link" @click.prevent="handleBack">&larr; Alle runder</a>
           <div class="editor-top-actions">
             <button class="idea-toggle" @click="ideaPanelOpen = !ideaPanelOpen">Idebank</button>
@@ -222,9 +355,11 @@ onBeforeUnmount(() => {
         <h1 class="editor-title">{{ title }}</h1>
 
         <div class="status-row">
-          <button v-for="s in ['draft', 'inProgress', 'done']" :key="s" :class="['status-btn', { active: round.status === s }]" @click="setStatus(s)">
+          <button v-for="s in ['draft', 'inProgress', 'review', 'done']" :key="s" :class="['status-btn', { active: round.status === s }]" @click="setStatus(s)">
             <StatusBadge :status="s" />
           </button>
+          <span class="rating-divider"></span>
+          <button v-for="n in 3" :key="'star'+n" class="rating-btn" @click="toggleRating(n)">{{ n <= localRating ? '\u2605' : '\u2606' }}</button>
         </div>
 
         <div class="meta-fields">
@@ -241,7 +376,7 @@ onBeforeUnmount(() => {
         <div class="questions-flow">
           <template v-for="(q, i) in round.questions" :key="q._key">
             <TransitionChainLink v-if="i > 0" :out-word="getTransitionOut(round.questions[i - 1])" :in-word="getTransitionIn(q)" />
-            <QuestionBlock :question="q" :index="i" @update="updateQuestion(i, $event)" @delete="deleteQuestion(i)" />
+            <QuestionBlock :question="q" :index="i" :is-first="i === 0" :is-last="i === round.questions.length - 1" @update="updateQuestion(i, $event)" @delete="deleteQuestion(i)" @move-up="moveQuestion(i, -1)" @move-down="moveQuestion(i, 1)" />
           </template>
         </div>
 
@@ -258,6 +393,8 @@ onBeforeUnmount(() => {
     <div v-if="ideaPanelOpen" class="idea-overlay" @click="ideaPanelOpen = false" />
 
     <div class="save-bar">
+      <button class="copy-btn" @click="copyRoundAsText">Kopier {{ copiedBtn === 'copy' ? '\u2713' : '' }}</button>
+      <button class="copy-btn ai-review-btn" @click="copyForAIReview">AI-sjekk {{ copiedBtn === 'ai' ? '\u2713' : '' }}</button>
       <button v-if="hasChanges" class="revert-btn" @click="revert">Angre</button>
       <span class="save-status">{{ saveStatus }}</span>
       <button class="save-btn" :disabled="saving" @click="handleSave">Lagre</button>
@@ -277,15 +414,15 @@ onBeforeUnmount(() => {
 
 .editor-top {
   display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-lg);
+  position: sticky; top: calc(var(--app-header-height, 2.5rem) - 1px); z-index: 15;
+  background: var(--color-bg);
+  padding: var(--space-sm) 0;
+  border-bottom: 1px solid var(--color-border-subtle);
+  margin: 0 calc(-1 * var(--space-md)); padding: var(--space-sm) var(--space-md);
+  transition: transform 0.25s ease;
 }
-@media (max-width: 640px) {
-  .editor-top {
-    position: sticky; top: 0; z-index: 15;
-    background: var(--color-bg); padding: var(--space-sm) 0;
-    border-bottom: 1px solid var(--color-border-subtle);
-    margin: 0 calc(-1 * var(--space-md)); padding: var(--space-sm) var(--space-md);
-    margin-bottom: var(--space-lg);
-  }
+.editor-top.header-hidden {
+  transform: translateY(-100%);
 }
 .editor-top-actions { display: flex; align-items: center; gap: var(--space-md); }
 .back-link { font-family: var(--font-ui); font-size: 0.85rem; color: var(--color-text-muted); }
@@ -310,6 +447,8 @@ onBeforeUnmount(() => {
 .status-btn { padding: 2px; border-radius: var(--radius-sm); opacity: 0.4; transition: opacity 0.15s; }
 .status-btn.active { opacity: 1; }
 .status-btn:hover { opacity: 0.8; }
+.rating-divider { width: 1px; height: 1.2rem; background: var(--color-border-subtle); margin: 0 var(--space-xs); }
+.rating-btn { font-size: 1.1rem; color: var(--color-status-in-progress); padding: 2px; }
 .meta-fields { display: flex; flex-direction: column; gap: var(--space-md); margin-bottom: var(--space-xl); padding-bottom: var(--space-xl); border-bottom: 1px solid var(--color-border-subtle); }
 .meta-field { display: flex; flex-direction: column; gap: var(--space-xs); }
 .meta-field label { font-family: var(--font-ui); font-size: 0.8rem; font-weight: 600; color: var(--color-text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
@@ -360,6 +499,10 @@ onBeforeUnmount(() => {
 .save-btn { font-family: var(--font-ui); font-weight: 600; padding: var(--space-sm) 4rem; background: var(--color-primary); color: var(--color-bg); border-radius: var(--radius-md); }
 .save-btn:hover { background: var(--color-primary-hover); }
 .save-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.copy-btn { font-family: var(--font-ui); font-size: 0.85rem; color: var(--color-text-muted); padding: var(--space-sm) var(--space-md); border-radius: var(--radius-md); border: 1px solid var(--color-border); min-width: 5rem; }
+.copy-btn:hover { color: var(--color-text); border-color: var(--color-text-muted); }
+.ai-review-btn { color: var(--color-status-review); border-color: var(--color-status-review); opacity: 0.7; }
+.ai-review-btn:hover { opacity: 1; }
 .revert-btn { font-family: var(--font-ui); font-size: 0.85rem; color: var(--color-text-muted); padding: var(--space-sm) var(--space-lg); border-radius: var(--radius-md); border: 1px solid var(--color-border); }
 .revert-btn:hover { color: var(--color-chain-break); border-color: var(--color-chain-break); }
 </style>

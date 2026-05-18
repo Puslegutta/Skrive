@@ -2,6 +2,7 @@
 import { watch, onBeforeUnmount } from 'vue'
 import { useEditor, EditorContent } from '@tiptap/vue-3'
 import StarterKit from '@tiptap/starter-kit'
+import { Placeholder } from '@tiptap/extensions/placeholder'
 import { TransitionInMark } from './TransitionInMark.js'
 import { TransitionOutMark } from './TransitionOutMark.js'
 import { portableTextToTiptap } from './portableTextToTiptap.js'
@@ -25,6 +26,7 @@ const editor = useEditor({
     }),
     TransitionInMark,
     TransitionOutMark,
+    Placeholder.configure({ placeholder: props.placeholder }),
   ],
   editorProps: {
     attributes: { class: 'question-editor-content' },
@@ -62,7 +64,32 @@ function toggleTransitionMark(type) {
   editor.value.chain().focus().toggleMark(type).run()
 }
 
-defineExpose({ toggleTransitionMark, editor })
+function removeTransitionMarks() {
+  if (!editor.value) return
+  const { from, to } = editor.value.state.selection
+  if (from === to) return
+  if (editor.value.isActive('transitionIn')) {
+    editor.value.chain().focus().toggleMark('transitionIn').run()
+  } else if (editor.value.isActive('transitionOut')) {
+    editor.value.chain().focus().toggleMark('transitionOut').run()
+  }
+}
+
+function clearMarkAll(type) {
+  if (!editor.value) return
+  const { doc } = editor.value.state
+  const { tr } = editor.value.state
+  const markType = editor.value.schema.marks[type]
+  if (!markType) return
+  doc.descendants((node, pos) => {
+    node.marks.filter(m => m.type === markType).forEach(() => {
+      tr.removeMark(pos, pos + node.nodeSize, markType)
+    })
+  })
+  if (tr.docChanged) editor.value.view.dispatch(tr)
+}
+
+defineExpose({ toggleTransitionMark, removeTransitionMarks, clearMarkAll, editor })
 </script>
 
 <template>
@@ -72,4 +99,12 @@ defineExpose({ toggleTransitionMark, editor })
 <style>
 .question-editor-content { outline: none; min-height: 1.6em; }
 .question-editor-content p { margin: 0; }
+.question-editor-content p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  color: var(--color-text-muted, #999);
+  opacity: 0.5;
+  pointer-events: none;
+  float: left;
+  height: 0;
+}
 </style>
